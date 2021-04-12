@@ -311,6 +311,7 @@ export class Playground extends Component<Props, PlaygroundState> {
                             { this.state.errorMsg }
                         </div>
                         }
+                        <div className="mt-3">Need a sample file? Download one <a href="https://github.com/IDGuy/esri-ascii-viewer/blob/main/sample-resources/castle.asc?raw=true" download>here</a></div>
                     </Modal.Body>
                 </Modal>
             </>

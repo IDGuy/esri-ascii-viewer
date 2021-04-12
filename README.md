@@ -1,7 +1,7 @@
 Esri Ascii Viewer is a web based React application that allows you to view an Esri Ascii Grid file (.asc) as a 3D model in your web browser.
 
 # Getting started
-You can view a live demo over at [TBA]
+You can view a live demo over at https://idguy.github.io/esri-ascii-viewer/
 
 To get the frontend running locally:
 - Clone this repo

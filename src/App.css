@@ -1,6 +1,7 @@
 html,
 body {
   height: 100%;
+  background-color: #33334c!important;
 }
 
 #root {
