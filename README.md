@@ -10,6 +10,10 @@ To get the frontend running locally:
 
 # Features
 - **3D Visualisation:** View your data as an interactive 3D model
+- **Terrain Generator:** Default terrain is generated when the playground loads
 - **Wireframe Mode:** Toggle on and off wireframe mode
 - **Snapshots:** Take a snapshot of your model from your chosen perspective and download as a PNG image
-- **Download:** Download a heightmap image of your data# IssuesFound a bug or want to request a new feature? Please let us know by submitting an issue.
+- **Download:** Download a heightmap image of your data
+
+# Issues
+Found a bug or want to request a new feature? Please let us know by submitting an issue.
