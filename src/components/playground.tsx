@@ -1,12 +1,13 @@
 import * as BABYLON from 'babylonjs';
-import { FloatArray, Nullable } from 'babylonjs';
-import React, { Component } from 'react';
+import { FloatArray } from 'babylonjs';
+import { Component } from 'react';
 import { Modal } from 'react-bootstrap';
 import { FileUploader } from './file-upload';
 import { AsciiGridLoader } from '../types/ascii-grid-loader';
 import { EsriGridData } from '../interfaces/EsriGridData';
 import { HeightMap } from '../types/height-map';
 import { Result } from 'neverthrow';
+import { TerrainGenerator } from '../types/terrain-generator';
 
 interface Props {
 }
@@ -24,6 +25,9 @@ export class Playground extends Component<Props, PlaygroundState> {
     private ground!: BABYLON.GroundMesh;
     private camera!: BABYLON.ArcRotateCamera;
     private heightMapImage!: string;
+    private terrainScaleInterval!: number;
+    private terrainScalePercentage: number = 0;
+    private verticesData!: BABYLON.Nullable<FloatArray>;
 
     public constructor(props: Props) {
         super(props);
@@ -36,17 +40,37 @@ export class Playground extends Component<Props, PlaygroundState> {
         };
     }
 
+    componentDidMount() {
+        this.init();
+    }
+
+    componentWillUnmount() {
+        this.clearScaleTerrainInterval();
+    }
+
+    public init() {
+        let detail = 9;
+        let terrainGenerator = new TerrainGenerator(detail);
+        let size = 2 ** detail + 1;
+        let esriGridDataResult = terrainGenerator.generate(1, size, size, size, 0.5);
+        this.processesriGridDataResult(esriGridDataResult);
+    }
+
     private loadFile = async(files: FileList) => {
         const file: File = (files)[0];
+        let asciiGridLoader = new AsciiGridLoader(file);
+        let esriGridDataResult = await asciiGridLoader.parse();
+        this.clearScaleTerrainInterval();
+        this.processesriGridDataResult(esriGridDataResult);
+    }
 
-        let asciiGridLoader: AsciiGridLoader = new AsciiGridLoader(file);
-        let esriGridDataResult: Result<EsriGridData, Error> = await asciiGridLoader.parse();
+    private processesriGridDataResult(esriGridDataResult: Result<EsriGridData, Error>) {
         if (esriGridDataResult.isOk()) {
             let esriGridData = esriGridDataResult.value;
-            let heightMap: HeightMap = new HeightMap();
-            let heightMapResult: Result<string, Error> = heightMap.generate(esriGridData);
+            let heightMap = new HeightMap();
+            let heightMapResult = heightMap.generate(esriGridData);
             if (heightMapResult.isOk()) {
-                let heightMapImage: string = heightMapResult.value;
+                let heightMapImage = heightMapResult.value;
                 if (heightMapImage != null) {
                     this.load(esriGridData, heightMapImage);
                     this.setState(() => ({
@@ -55,7 +79,7 @@ export class Playground extends Component<Props, PlaygroundState> {
                 }
             }
             else {
-                let error: string = heightMapResult.error.message;
+                let error = heightMapResult.error.message;
                 this.setState(() => ({
                     errorMsg: error
                 }));
@@ -63,7 +87,7 @@ export class Playground extends Component<Props, PlaygroundState> {
         }
         else
         {
-            let error: string = esriGridDataResult.error.message;
+            let error = esriGridDataResult.error.message;
             this.setState(() => ({
                 errorMsg: error
             }));
@@ -76,15 +100,15 @@ export class Playground extends Component<Props, PlaygroundState> {
       
     public load(data: EsriGridData, heightMapImage: string) {
         this.heightMapImage = heightMapImage;
-        let canvas: HTMLCanvasElement = document.getElementById("renderCanvas") as HTMLCanvasElement;
+        let canvas = document.getElementById("renderCanvas") as HTMLCanvasElement;
         this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
         this.createScene(canvas, data, heightMapImage);
         window.addEventListener("resize", () => {
-            console.info("resize");
+            // Handle browser resize events
             this.engine.resize();
         });
         this.engine.runRenderLoop(() => {
-            let camera: BABYLON.ArcRotateCamera = this.scene.activeCamera as BABYLON.ArcRotateCamera;
+            let camera = this.scene.activeCamera as BABYLON.ArcRotateCamera;
             if (this.state.isPlaying) {
                 camera.alpha += .001;
             }
@@ -93,67 +117,47 @@ export class Playground extends Component<Props, PlaygroundState> {
     }
 
     private createScene(canvas: HTMLCanvasElement, data: EsriGridData, heightMapImage: string) {
-        let yPercent:number = 0;
-        let p: Nullable<FloatArray>;
-        let isReachedFullHeight: boolean = false;
-        let size: number = data.properties.nCols > data.properties.nRows ? data.properties.nCols: data.properties.nRows;
-        
-        setInterval(t => {
-            if (yPercent < 100) {
-                yPercent += 0.5;
-                console.info(yPercent);
-            }
-        }, 25);
+        let size = data.properties.nCols > data.properties.nRows ? data.properties.nCols: data.properties.nRows;
 
         this.scene = new BABYLON.Scene(this.engine);
 
         // Light
-        var spot: BABYLON.PointLight = new BABYLON.PointLight("spot", new BABYLON.Vector3(size / 2, size, size / 2), this.scene);
+        let spot = new BABYLON.PointLight("spot", new BABYLON.Vector3(size / 2, size, size / 2), this.scene);
         spot.diffuse = new BABYLON.Color3(1, 1, 1);
         spot.specular = new BABYLON.Color3(0, 0, 0);
 
         // Camera
-        this.camera = new BABYLON.ArcRotateCamera("Camera", 0, 0.8, size, BABYLON.Vector3.Zero(), this.scene);
+        let cameraYAxis = ((data.maxValue - data.minValue) * 1.0) / 2.0;
+        this.camera = new BABYLON.ArcRotateCamera("Camera", 0, 0.8, size, new BABYLON.Vector3(0, cameraYAxis, 0), this.scene);
         this.camera.lowerBetaLimit = 0.1;
         this.camera.upperBetaLimit = (Math.PI / 2) * 0.9;
         this.camera.lowerRadiusLimit = 30;
-        this.camera.upperRadiusLimit = size * 1.5;
+        this.camera.upperRadiusLimit = size * 2;
         this.camera.attachControl(canvas, true);
         
         // Ground
-        var groundMaterial: BABYLON.StandardMaterial = new BABYLON.StandardMaterial("ground", this.scene);
+        let groundMaterial = new BABYLON.StandardMaterial("ground", this.scene);
         this.ground = BABYLON.Mesh.CreateGroundFromHeightMap("ground", heightMapImage, size, size, 200, 0, data.maxValue, this.scene, true, () => {
-            p = this.ground.getVerticesData(BABYLON.VertexBuffer.PositionKind, false, true);
+            this.verticesData = this.ground.getVerticesData(BABYLON.VertexBuffer.PositionKind, false, true);
         });
         this.ground.material = groundMaterial;
         this.ground.material.wireframe = this.state.isWireframeEnabled;
 
-        var positionFunction = function(positions: FloatArray) {
-            if (p !== null) {
-                for (var i = 0; i < positions.length; i = i + 3) {
-                    if (!isReachedFullHeight) {
-                        positions[i + 1] = p[i + 1] * ((yPercent * 1.0) / (100 * 1.0));
-                        if (yPercent >= 100) {
-                            isReachedFullHeight = true;
-                        }
-                    }
-                }
-            }
-        };
+        this.beginScaleTerrain();
 
-        var rotAnim: BABYLON.Animation = new BABYLON.Animation("ra", "rotation", 15, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
+        let rotAnim = new BABYLON.Animation("ra", "rotation", 15, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE);
 
         let rotKeys = [];
         rotKeys.push({ frame: 0, value: this.camera.rotation });
-        rotKeys.push({ frame: 40, value: new BABYLON.Vector3(0, -Math.PI*2, 0) });
-        rotKeys.push({ frame: 80, value: new BABYLON.Vector3(0, Math.PI*2, 0) });
+        rotKeys.push({ frame: 40, value: new BABYLON.Vector3(0, -Math.PI * 2, 0) });
+        rotKeys.push({ frame: 80, value: new BABYLON.Vector3(0, Math.PI * 2, 0) });
         rotKeys.push({ frame: 120, value: new BABYLON.Vector3(0, 0, 0) });
         rotAnim.setKeys(rotKeys);
 
         this.camera.animations.push(rotAnim);
 
         this.scene.registerBeforeRender(() => {
-            this.ground.updateMeshPositions(positionFunction);
+            this.ground.updateMeshPositions(this.updateMeshPositions);
             this.ground.bakeCurrentTransformIntoVertices();
         });
     };
@@ -189,7 +193,7 @@ export class Playground extends Component<Props, PlaygroundState> {
 
     private triggerScreenshot = () => {
         BABYLON.Tools.CreateScreenshot(this.engine, this.camera, { width: 1024, height: 1024 }, (data) => {            
-            let anchor:HTMLAnchorElement = document.createElement("a");
+            let anchor: HTMLAnchorElement = document.createElement("a");
             anchor.href = data;
             anchor.download = `screenshot-${this.getFormattedTime()}.png`;
 
@@ -207,7 +211,7 @@ export class Playground extends Component<Props, PlaygroundState> {
     }
 
     private triggerDownload = () => {
-        let anchor:HTMLAnchorElement = document.createElement("a");
+        let anchor: HTMLAnchorElement = document.createElement("a");
         anchor.href = this.heightMapImage;
         anchor.download = `heightmap-${this.getFormattedTime()}.png`;
 
@@ -224,15 +228,42 @@ export class Playground extends Component<Props, PlaygroundState> {
     }
 
     private getFormattedTime = (): string => {
-        var today = new Date();
-        var y = today.getFullYear();
-        var m = (today.getMonth() + 1).toString().padStart(2, '0');
-        var d = today.getDate().toString().padStart(2, '0');
-        var h = today.getHours().toString().padStart(2, '0');
-        var mi = today.getMinutes().toString().padStart(2, '0');
-        var s = today.getSeconds().toString().padStart(2, '0');
+        let today = new Date();
+        let y = today.getFullYear();
+        let m = (today.getMonth() + 1).toString().padStart(2, '0');
+        let d = today.getDate().toString().padStart(2, '0');
+        let h = today.getHours().toString().padStart(2, '0');
+        let mi = today.getMinutes().toString().padStart(2, '0');
+        let s = today.getSeconds().toString().padStart(2, '0');
         return y + "-" + m + "-" + d + "-" + h + "-" + mi + "-" + s;
     }
+
+    private beginScaleTerrain = () => {
+        this.terrainScalePercentage = 0;
+        this.terrainScaleInterval = window.setInterval(() => {
+            if (this.terrainScalePercentage < 100) {
+                this.terrainScalePercentage += 0.5;
+            }
+            else {
+                this.clearScaleTerrainInterval();
+            }
+        }, 25);
+    }
+
+    private clearScaleTerrainInterval = () => {
+        if (this.terrainScaleInterval) {
+            window.clearInterval(this.terrainScaleInterval);
+            this.terrainScaleInterval = 0;
+        }
+    }
+
+    private updateMeshPositions = (positions: FloatArray) => {
+        if (this.terrainScalePercentage < 100 && this.verticesData) {
+            for (let i = 0; i < positions.length; i = i + 3) {
+                positions[i + 1] = this.verticesData[i + 1] * ((this.terrainScalePercentage * 1.0) / (100 * 1.0));
+            }
+        }
+    };
 
     public render(): JSX.Element {
         return (
@@ -272,7 +303,7 @@ export class Playground extends Component<Props, PlaygroundState> {
                     </button>
                     <button onClick={this.triggerWireframe} className={`${this.state.isWireframeEnabled ? 'active' : ''}`}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 10l-2 1m0 0l-2-1m2 1v2.5M20 7l-2 1m2-1l-2-1m2 1v2.5M14 4l-2-1-2 1M4 7l2-1M4 7l2 1M4 7v2.5M12 21l-2-1m2 1l2-1m-2 1v-2.5M6 18l-2-1v-2.5M18 18l2-1v-2.5" />
                         </svg>
                         <span>
                             Wireframe
@@ -280,8 +311,8 @@ export class Playground extends Component<Props, PlaygroundState> {
                     </button>
                     <button onClick={this.triggerScreenshot}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                         </svg>
                         <span>
                             Screenshot
@@ -289,7 +320,7 @@ export class Playground extends Component<Props, PlaygroundState> {
                     </button>
                     <button onClick={this.triggerDownload}>
                         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         <span>
                             Download

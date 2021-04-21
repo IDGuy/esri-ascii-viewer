@@ -12,9 +12,6 @@ export class AsciiGridLoader {
 
     async parse(): Promise<Result<EsriGridData, Error>>
     {
-        let data: EsriGridData;
-
-        let isFileValid: boolean = true;
         let ext: string = this.file.name.substring(this.file.name.lastIndexOf('.') + 1).toLowerCase();
         if (ext === "asc")
         {
@@ -88,15 +85,15 @@ export class AsciiGridLoader {
         return rasterValues;
     }
 
-    getEsriGridProperty<T>(rows:Array<string>, key:string): number {
-        let value: number|undefined = this.getOptionalEsriGridProperty(rows, key);
+    getEsriGridProperty<T>(rows:Array<string>, key:string): T {
+        let value: T|undefined = this.getOptionalEsriGridProperty(rows, key);
         if (value === undefined)
             throw new Error(`Property ${ key } does not exist`);
 
-        return value as number;
+        return value as T;
     }
 
-    getOptionalEsriGridProperty<T>(rows:Array<string>, key:string): number|undefined {
+    getOptionalEsriGridProperty<T>(rows:Array<string>, key:string): T|undefined {
         // Esri Grid Properties are found in the first 6 rows
         for (let i:number = 0; i < 6; i++) {
             let nameValuePair:Array<string> = rows[i].split(' ');
