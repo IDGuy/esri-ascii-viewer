@@ -137,7 +137,7 @@ export class Playground extends Component<Props, PlaygroundState> {
         
         // Ground
         let groundMaterial = new BABYLON.StandardMaterial("ground", this.scene);
-        this.ground = BABYLON.Mesh.CreateGroundFromHeightMap("ground", heightMapImage, size, size, 200, 0, data.maxValue, this.scene, true, () => {
+        this.ground = BABYLON.Mesh.CreateGroundFromHeightMap("ground", heightMapImage, data.properties.nCols, data.properties.nRows, 200, 0, data.maxValue, this.scene, true, () => {
             this.verticesData = this.ground.getVerticesData(BABYLON.VertexBuffer.PositionKind, false, true);
         });
         this.ground.material = groundMaterial;

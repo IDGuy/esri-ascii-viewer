@@ -49,7 +49,7 @@ export class AsciiGridLoader {
             xllCorner: this.getEsriGridProperty<number>(rows, "xllcorner"),
             yllCorner: this.getEsriGridProperty<number>(rows, "yllcorner"),
             cellSize: this.getEsriGridProperty<number>(rows, "cellsize"),
-            noDataValue: this.getOptionalEsriGridProperty<number>(rows, "noDataValue")
+            noDataValue: this.getOptionalEsriGridProperty<number>(rows, "nodata_value")
         };
 
         return props;
@@ -60,7 +60,10 @@ export class AsciiGridLoader {
         for (let rowIndex = 6; rowIndex < rows.length; rowIndex++) {
             let rowText: string = rows[rowIndex];
             if (rowText) {
-                let rowData: Array<string> = rows[rowIndex].split(" ");
+                if (!rowText.trim().length) {
+                    continue;
+                }
+                let rowData: Array<string> = rowText.trim().split(" ");
                 let rowValues: Array<number> = new Array<number>();
 
                 for (let colIndex = 0; colIndex < rowData.length; colIndex++) {
@@ -96,8 +99,8 @@ export class AsciiGridLoader {
     getOptionalEsriGridProperty<T>(rows:Array<string>, key:string): T|undefined {
         // Esri Grid Properties are found in the first 6 rows
         for (let i:number = 0; i < 6; i++) {
-            let nameValuePair:Array<string> = rows[i].split(' ');
-            if (nameValuePair[0] === key) {
+            let nameValuePair:Array<string> = rows[i].split(/ +/);
+            if (nameValuePair[0] && nameValuePair[0].toLowerCase() === key) {
                 return nameValuePair[1] as any;
             }
         }
