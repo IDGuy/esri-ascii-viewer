@@ -1,4 +1,14 @@
-/******/ (() => { // webpackBootstrap
+(function webpackUniversalModuleDefinition(root, factory) {
+	if(typeof exports === 'object' && typeof module === 'object')
+		module.exports = factory(require("rxjs"));
+	else if(typeof define === 'function' && define.amd)
+		define(["rxjs"], factory);
+	else {
+		var a = typeof exports === 'object' ? factory(require("rxjs")) : factory(root["rxjs"]);
+		for(var i in a) (typeof exports === 'object' ? exports : root)[i] = a[i];
+	}
+})(this, function(__WEBPACK_EXTERNAL_MODULE__435__) {
+return /******/ (() => { // webpackBootstrap
 /******/ 	var __webpack_modules__ = ({
 
 /***/ 657:
@@ -7,7 +17,7 @@
 var ___EXPOSE_LOADER_IMPORT___ = __webpack_require__(499);
 var ___EXPOSE_LOADER_GET_GLOBAL_THIS___ = __webpack_require__(672);
 var ___EXPOSE_LOADER_GLOBAL_THIS___ = ___EXPOSE_LOADER_GET_GLOBAL_THIS___;
-if (typeof ___EXPOSE_LOADER_GLOBAL_THIS___["Vasat"] === 'undefined') ___EXPOSE_LOADER_GLOBAL_THIS___["Vasat"] = ___EXPOSE_LOADER_IMPORT___;
+if (typeof ___EXPOSE_LOADER_GLOBAL_THIS___["vasat"] === 'undefined') ___EXPOSE_LOADER_GLOBAL_THIS___["vasat"] = ___EXPOSE_LOADER_IMPORT___;
 module.exports = ___EXPOSE_LOADER_IMPORT___;
 
 
@@ -9586,6 +9596,13 @@ class Transform extends PlottableModel {
             .queryObservable()
             .pipe(operators_1.map(res => res.items));
     }
+    toJSON() {
+        var a = super.toJSON();
+        delete a.__properties;
+        delete a.__detected;
+        delete a.issues;
+        return a;
+    }
 }
 __decorate([
     vasat_1.AsClass(Dataset),
@@ -12845,7 +12862,7 @@ exports.Store = Store;
 /***/ ((module) => {
 
 "use strict";
-module.exports = window["rxjs"];
+module.exports = __WEBPACK_EXTERNAL_MODULE__435__;
 
 /***/ })
 
@@ -12969,6 +12986,7 @@ Object.defineProperty(exports, "Renderer", ({ enumerable: true, get: function ()
 
 })();
 
-window.fourd = __webpack_exports__;
+/******/ 	return __webpack_exports__;
 /******/ })()
 ;
+});
